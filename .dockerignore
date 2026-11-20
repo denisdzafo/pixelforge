@@ -1,0 +1,3 @@
+# The project is bind-mounted, not copied: only these files go into the image
+*
+!docker/php
