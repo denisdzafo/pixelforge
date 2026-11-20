@@ -1,28 +1,36 @@
 <?php
 
+use App\Http\Middleware\HandleAppearance;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Routing\Middleware\ThrottleRequests;
-use App\Http\Middleware\JwtAuthMiddleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
-        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            Route::middleware('api')->group(base_path('routes/webhooks.php'));
+        },
     )
-    ->withMiddleware(function (Middleware $middleware) {
-        // Laravel runs `throttle` early by priority; the api limit is keyed by the user, so the access token
-        // (which identifies the user) must be checked first
-        $middleware->prependToPriorityList(ThrottleRequests::class, JwtAuthMiddleware::class);
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        $middleware->alias([
-            // Verified access token (401 otherwise); puts the User model on the request
-            'jwtAuth' => JwtAuthMiddleware::class,
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+
+        $middleware->web(append: [
+            HandleAppearance::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {
-        //
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+        );
     })->create();

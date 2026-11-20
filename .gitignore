@@ -1,34 +1,33 @@
-# Dependencies: installed by the Docker entrypoint / the node service (composer install / npm install)
 /vendor
 /node_modules
 
-# Built assets: npm run build
 /public/build
 /public/hot
+/public/fonts-manifest.dev.json
+/bootstrap/ssr
 
-# Created by php artisan storage:link
+/resources/js/actions
+/resources/js/routes
+/resources/js/wayfinder
+
 /public/storage
 
-# Environment and secrets
 .env
 .env.backup
 .env.production
 /auth.json
 /storage/*.key
 
-# Created at runtime (the Docker entrypoint creates the folders)
 /storage/app/*
 /storage/framework/*
 /storage/logs/*
 /bootstrap/cache/*
 
-# Tool caches and logs
 .phpunit.result.cache
 /.phpunit.cache
 /storage/pail
 *.log
 
-# Editors and OS files
 /.fleet
 /.idea
 /.nova

@@ -1,5 +1,4 @@
-# Thin wrappers around docker compose. Nothing here is required: `docker compose up -d` alone starts everything.
-.PHONY: setup up down restart logs ps shell migrate fresh test analyse lint typecheck build
+.PHONY: setup up down restart logs ps shell migrate fresh test test-js analyse pint lint typecheck build check
 
 setup: up
 
@@ -28,16 +27,26 @@ fresh:
 	docker compose exec app php artisan migrate:fresh --seed
 
 test:
-	docker compose exec app composer test
+	docker compose exec app php artisan test
+
+test-js:
+	docker compose exec node npm test
 
 analyse:
-	docker compose exec app composer analyse
+	docker compose exec app vendor/bin/phpstan analyse --memory-limit=1G
+
+pint:
+	docker compose exec app vendor/bin/pint --parallel
 
 lint:
-	docker compose exec node npm run lint
+	docker compose exec node npm run check:fix
 
 typecheck:
-	docker compose exec node npm run typecheck
+	docker compose exec node npm run types:check
 
 build:
 	docker compose exec node npm run build
+
+check: test test-js analyse typecheck
+	docker compose exec app vendor/bin/pint --parallel --test
+	docker compose exec node npm run check

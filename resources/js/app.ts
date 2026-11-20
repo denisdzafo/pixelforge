@@ -1,32 +1,40 @@
-import '../css/app.css';
-import { createApp } from 'vue';
-import { createPinia } from 'pinia';
-import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
-import Index from './Index.vue';
-import i18n, { setupLocale } from './i18n';
-import router from './services/router';
-import { setSessionExpiredHandler } from './services/httpCommon';
-import { useApplicationStore } from './services/store';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { initializeTheme } from '@/composables/useAppearance';
+import AppLayout from '@/layouts/AppLayout.vue';
+import AuthLayout from '@/layouts/AuthLayout.vue';
+import SettingsLayout from '@/layouts/settings/Layout.vue';
+import { initializeFlashToast } from '@/lib/flashToast';
 
-const pinia = createPinia();
-pinia.use(piniaPluginPersistedstate);
+const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
-const app = createApp(Index);
-
-app.use(pinia);
-app.use(router);
-app.use(i18n);
-
-// The refresh token stopped working while a page was open: back to the login page, then back to this page
-setSessionExpiredHandler(() => {
-    useApplicationStore().clearSession();
-    const current = router.currentRoute.value;
-    if (!current.meta.guest) {
-        router.push({ name: 'Login', query: { redirect: current.fullPath } });
-    }
+void createInertiaApp({
+    title: (title) => (title ? `${title} - ${appName}` : appName),
+    layout: (name) => {
+        switch (true) {
+            case name === 'Welcome':
+                return null;
+            case name.startsWith('auth/'):
+                return AuthLayout;
+            case name.startsWith('settings/'):
+                return [AppLayout, SettingsLayout];
+            default:
+                return AppLayout;
+        }
+    },
+    withApp: (app) => {
+        app.directive('focus', {
+            mounted: (el: HTMLElement, shouldFocus) => {
+                if (shouldFocus.value !== false) {
+                    el.focus();
+                }
+            },
+        });
+    },
+    progress: {
+        color: '#4B5563',
+    },
 });
 
-// The user's language is loaded before the first render, so no page shows English first
-setupLocale(navigator.language).finally(() => {
-    app.mount('#app');
-});
+initializeTheme();
+
+initializeFlashToast();

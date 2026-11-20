@@ -1,6 +1,7 @@
+FROM node:24.15.0-bookworm-slim AS node
+
 FROM php:8.4-fpm-bookworm
 
-# The container's user takes your host uid/gid, so files created in the bind mount (vendor, logs, uploads) belong to you
 ARG WWWUSER=1000
 ARG WWWGROUP=1000
 
@@ -11,6 +12,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --2
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-app.ini
 COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint

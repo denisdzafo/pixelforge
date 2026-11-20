@@ -1,12 +1,13 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
 
 parameters:
     paths:
-        - app
-        - routes
-        - config
-        - database
-    # 0 (loosest) .. 10; 5 = argument types, unknown methods/properties, dead code
-    level: 5
-    tmpDir: storage/framework/cache/phpstan
+        - app/
+        - bootstrap/app.php
+        - config/
+        - database/
+        - routes/
+
+    level: 7

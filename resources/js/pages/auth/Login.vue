@@ -1,60 +1,107 @@
-<template>
-    <section class="mx-auto mt-12 max-w-sm rounded border border-gray-200 bg-white p-6">
-        <h1 class="mb-4 text-xl font-semibold">{{ t('auth.loginTitle') }}</h1>
-
-        <p v-if="errorMessage" role="alert" class="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-800">{{ errorMessage }}</p>
-
-        <form class="flex flex-col gap-4" @submit.prevent="submit">
-            <label class="flex flex-col gap-1 text-sm">
-                {{ t('auth.email') }}
-                <input v-model="email" name="email" type="email" autocomplete="email" required class="rounded border border-gray-300 px-3 py-2" />
-            </label>
-            <label class="flex flex-col gap-1 text-sm">
-                {{ t('auth.password') }}
-                <input v-model="password" name="password" type="password" autocomplete="current-password" required class="rounded border border-gray-300 px-3 py-2" />
-            </label>
-            <button type="submit" class="rounded bg-gray-900 px-4 py-2 text-white hover:bg-gray-700 disabled:opacity-50" :disabled="loading">
-                {{ loading ? t('common.loading') : t('auth.signIn') }}
-            </button>
-        </form>
-
-        <p class="mt-4 text-sm text-gray-600">
-            {{ t('auth.noAccount') }}
-            <RouterLink :to="{ name: 'Register' }" class="underline">{{ t('auth.signUp') }}</RouterLink>
-        </p>
-    </section>
-</template>
-
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
-import { getErrorMessage } from '@/services/apiErrors';
-import { useApplicationStore } from '@/services/store';
+import { Form, Head } from '@inertiajs/vue3';
+import InputError from '@/components/InputError.vue';
+import PasswordInput from '@/components/PasswordInput.vue';
+import TextLink from '@/components/TextLink.vue';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
+import { register } from '@/routes';
+import { store } from '@/routes/login';
+import { request } from '@/routes/password';
 
-const { t } = useI18n();
-const store = useApplicationStore();
-const route = useRoute();
-const router = useRouter();
+defineOptions({
+    layout: {
+        title: 'Log in to your account',
+        description: 'Enter your email and password below to log in',
+    },
+});
 
-const email = ref('');
-const password = ref('');
-const loading = ref(false);
-const errorMessage = ref('');
-
-const submit = async () => {
-    loading.value = true;
-    errorMessage.value = '';
-    try {
-        await store.login({ email: email.value, password: password.value });
-        // Only paths inside the app: a crafted ?redirect= must not lead to another site
-        const redirect = route.query.redirect;
-        router.push(typeof redirect === 'string' && /^\/(?!\/)/.test(redirect) ? redirect : { name: 'Dashboard' });
-    } catch (error) {
-        console.error('Error signing in:', error);
-        errorMessage.value = getErrorMessage(error, t('auth.loginFailed'));
-    } finally {
-        loading.value = false;
-    }
-};
+defineProps<{
+    status?: string;
+    canResetPassword: boolean;
+}>();
 </script>
+
+<template>
+    <Head title="Log in" />
+
+    <div
+        v-if="status"
+        class="mb-4 text-center text-sm font-medium text-green-600"
+    >
+        {{ status }}
+    </div>
+
+    <Form
+        v-bind="store.form()"
+        :reset-on-success="['password']"
+        v-slot="{ errors, processing }"
+        class="flex flex-col gap-6"
+    >
+        <div class="grid gap-6">
+            <div class="grid gap-2">
+                <Label for="email">Email address</Label>
+                <Input
+                    id="email"
+                    type="email"
+                    name="email"
+                    required
+                    v-focus
+                    :tabindex="1"
+                    autocomplete="email"
+                    placeholder="email@example.com"
+                />
+                <InputError :message="errors.email" />
+            </div>
+
+            <div class="grid gap-2">
+                <div class="flex items-center justify-between">
+                    <Label for="password">Password</Label>
+                    <TextLink
+                        v-if="canResetPassword"
+                        :href="request()"
+                        class="text-sm"
+                        :tabindex="5"
+                    >
+                        Forgot your password?
+                    </TextLink>
+                </div>
+                <PasswordInput
+                    id="password"
+                    name="password"
+                    required
+                    :tabindex="2"
+                    autocomplete="current-password"
+                    placeholder="Password"
+                />
+                <InputError :message="errors.password" />
+            </div>
+
+            <div class="flex items-center justify-between">
+                <Label for="remember" class="flex items-center space-x-3">
+                    <Checkbox id="remember" name="remember" :tabindex="3" />
+                    <span>Remember me</span>
+                </Label>
+            </div>
+
+            <Button
+                type="submit"
+                class="mt-4 w-full"
+                :tabindex="4"
+                :disabled="processing"
+                data-test="login-button"
+            >
+                <Spinner v-if="processing" />
+                Log in
+            </Button>
+        </div>
+
+        <div class="text-center text-sm text-muted-foreground">
+            Don't have an account?
+            <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
+        </div>
+    </Form>
+</template>

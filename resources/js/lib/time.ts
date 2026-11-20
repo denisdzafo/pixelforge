@@ -1,0 +1,21 @@
+const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+
+export function timeAgo(iso: string, now: number = Date.now()): string {
+    const seconds = Math.round((new Date(iso).getTime() - now) / 1000);
+    const abs = Math.abs(seconds);
+
+    if (abs < 45) return relative.format(seconds, 'second');
+    if (abs < 45 * 60)
+        return relative.format(Math.round(seconds / 60), 'minute');
+    if (abs < 22 * 3600)
+        return relative.format(Math.round(seconds / 3600), 'hour');
+
+    return relative.format(Math.round(seconds / 86400), 'day');
+}
+
+export function dateTime(iso: string): string {
+    return new Date(iso).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}

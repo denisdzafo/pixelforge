@@ -2,47 +2,56 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Middleware\TrustProxies;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // Only these proxies may set X-Forwarded-* (client IP, https); empty = none (config/app.php trusted_proxies)
-        TrustProxies::at(config('app.trusted_proxies') ?: []);
+        $this->configureDefaults();
 
-        $this->configureRateLimiting();
+        if ($this->app->runningInConsole()) {
+            DevCommands::artisan('schedule:work', 'scheduler');
+        }
+
+        JsonResource::withoutWrapping();
+
+        Gate::define('viewAdminReport', fn (User $user) => $user->is_admin);
+
+        RateLimiter::for('generations', fn (Request $request) => Limit::perMinute(10)->by((string) $request->user()?->id));
+
+        RateLimiter::for('pixelforge-webhooks', fn (Request $request) => Limit::perMinute(600)->by((string) $request->ip()));
     }
 
-    /**
-     * Limiters used by the routes (`throttle:api`, `throttle:auth`), see config/rate_limits.php.
-     * The api limit is per user: it runs after jwtAuth, which verified the access token.
-     */
-    private function configureRateLimiting()
+    protected function configureDefaults(): void
     {
-        $tooMany = fn () => response()->json(['error' => 'Too many requests. Please wait a minute and try again.'], 429);
+        Date::use(CarbonImmutable::class);
 
-        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(config('rate_limits.api_per_minute'))
-            ->by('api|' . ($request->attributes->get('userModel')->id ?? $request->ip()))
-            ->response($tooMany));
+        DB::prohibitDestructiveCommands(
+            app()->isProduction(),
+        );
 
-        RateLimiter::for('auth', fn (Request $request) => Limit::perMinute(config('rate_limits.auth_per_minute'))
-            ->by('auth|' . $request->ip())
-            ->response($tooMany));
+        Password::defaults(fn (): ?Password => app()->isProduction()
+            ? Password::min(12)
+                ->mixedCase()
+                ->letters()
+                ->numbers()
+                ->symbols()
+                ->uncompromised()
+            : null,
+        );
     }
 }

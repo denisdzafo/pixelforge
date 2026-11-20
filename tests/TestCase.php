@@ -2,26 +2,23 @@
 
 namespace Tests;
 
-use App\Models\User;
-use App\Services\Auth\JwtService;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function createUser(array $attributes = []): User
+    protected function setUp(): void
     {
-        return User::create(array_merge([
-            'name' => 'Test User',
-            'email' => 'user@example.com',
-            'password' => 'correct-password',
-        ], $attributes));
+        parent::setUp();
+
+        $this->withoutVite();
+        config(['inertia.ssr.enabled' => false]);
     }
 
-    /**
-     * Headers of a signed-in request (routes behind jwtAuth)
-     */
-    protected function authHeaders(User $user): array
+    protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void
     {
-        return ['Authorization' => 'Bearer ' . app(JwtService::class)->issueAccessToken($user)['token']];
+        if (! Features::enabled($feature)) {
+            $this->markTestSkipped($message ?? "Fortify feature [{$feature}] is not enabled.");
+        }
     }
 }
